@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Miner Hesaplama</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #0f172a; 
+            color: #f1f5f9;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 2px solid #3b82f6; }
+        h1 { color: #60a5fa; font-size: 28px; margin-bottom: 10px; }
+        .total-power {
+            background: linear-gradient(135deg, #1e40af, #3b82f6);
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3);
+        }
+        .power-value { font-size: 42px; font-weight: bold; color: white; }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #334155;
+        }
+        .card-title { color: #60a5fa; font-size: 20px; margin-bottom: 15px; }
+        .btn {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            background: #334155;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .form-row { display: flex; gap: 10px; }
+        .form-row > * { flex: 1; }
+        .miner-list, .rack-list { margin-top: 15px; }
+        .item {
+            background: #334155;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #3b82f6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⛏️ Miner Hesaplama</h1>
+            <p>iPhone için optimize edilmiş sürüm</p>
+        </header>
+        
+        <div class="total-power">
+            <h2>TOPLAM GÜÇ</h2>
+            <div class="power-value" id="totalPower">0 GH/s</div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">➕ YENİ MINER EKLE</div>
+            <input type="text" id="minerName" placeholder="Miner Adı">
+            <input type="number" id="minerPower" placeholder="Güç (GH/s)">
+            <input type="number" id="minerBonus" placeholder="Bonus (%)">
+            <select id="minerType">
+                <option value="1h">1 Hücreli Miner</option>
+                <option value="2h">2 Hücreli Miner</option>
+            </select>
+            <button class="btn" id="addMinerBtn">MINER EKLE</button>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">🗄️ YENİ RAF EKLE</div>
+            <select id="roomSelect">
+                <option value="1">Oda 1 (12 raf kapasite)</option>
+                <option value="2">Oda 2 (18 raf)</option>
+                <option value="3">Oda 3 (18 raf)</option>
+                <option value="4">Oda 4 (18 raf)</option>
+            </select>
+            <input type="text" id="rackName" placeholder="Raf Adı">
+            <input type="number" id="rackBonus" placeholder="Raf Bonusu (%)">
+            <button class="btn" id="addRackBtn">RAF EKLE</button>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">📋 MINER LİSTEM</div>
+            <div class="miner-list" id="minerList">
+                <p style="text-align: center; color: #94a3b8;">Henüz miner eklenmedi</p>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">🏗️ RAF LİSTEM</div>
+            <div class="rack-list" id="rackList">
+                <p style="text-align: center; color: #94a3b8;">Henüz raf eklenmedi</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Basit veri yapıları
+        let miners = [];
+        let racks = [];
+        let rooms = [
+            { id: 1, name: "Oda 1", maxRacks: 12, racks: [] },
+            { id: 2, name: "Oda 2", maxRacks: 18, racks: [] },
+            { id: 3, name: "Oda 3", maxRacks: 18, racks: [] },
+            { id: 4, name: "Oda 4", maxRacks: 18, racks: [] }
+        ];
+
+        // Sayfa yüklendiğinde
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            updateUI();
+            
+            document.getElementById('addMinerBtn').addEventListener('click', addMiner);
+            document.getElementById('addRackBtn').addEventListener('click', addRack);
+        });
+
+        function addMiner() {
+            const name = document.getElementById('minerName').value.trim();
+            const power = parseFloat(document.getElementById('minerPower').value);
+            const bonus = parseFloat(document.getElementById('minerBonus').value) || 0;
+            const type = document.getElementById('minerType').value;
+            
+            if (!name || isNaN(power)) {
+                alert('Lütfen miner adı ve güç değeri girin!');
+                return;
+            }
+            
+            const miner = {
+                id: Date.now(),
+                name: name,
+                power: power,
+                bonus: bonus,
+                type: type,
+                cellsNeeded: type === '2h' ? 2 : 1
+            };
+            
+            miners.push(miner);
+            saveData();
+            updateUI();
+            
+            // Formu temizle
+            document.getElementById('minerName').value = '';
+            document.getElementById('minerPower').value = '';
+            document.getElementById('minerBonus').value = '';
+            
+            alert('Miner eklendi!');
+        }
+
+        function addRack() {
+            const roomId = parseInt(document.getElementById('roomSelect').value);
+            const name = document.getElementById('rackName').value.trim();
+            const bonus = parseFloat(document.getElementById('rackBonus').value) || 0;
+            
+            if (!name) {
+                alert('Lütfen raf adı girin!');
+                return;
+            }
+            
+            const room = rooms.find(r => r.id === roomId);
+            if (room.racks.length >= room.maxRacks) {
+                alert('Bu oda doldu!');
+                return;
+            }
+            
+            const rack = {
+                id: Date.now(),
+                name: name,
+                bonus: bonus,
+                roomId: roomId,
+                floors: 4,
+                cellsPerFloor: 2
+            };
+            
+            // Gerçek rooms dizisine ekle
+            room.racks.push(rack);
+            // Ayrı racks dizisine de ekle (listeleme için)
+            racks.push({...rack, roomName: room.name});
+            
+            saveData();
+            updateUI();
+            
+            // Formu temizle
+            document.getElementById('rackName').value = '';
+            document.getElementById('rackBonus').value = '';
+            
+            alert('Raf eklendi!');
+        }
+
+        function updateUI() {
+            updateMinerList();
+            updateRackList();
+            updateTotalPower();
+        }
+
+        function updateMinerList() {
+            const container = document.getElementById('minerList');
+            container.innerHTML = '';
+            
+            if (miners.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #94a3b8;">Henüz miner eklenmedi</p>';
+                return;
+            }
+            
+            miners.forEach(miner => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `
+                    <strong>${miner.name}</strong><br>
+                    <small>${miner.power} GH/s (+%${miner.bonus}) - ${miner.cellsNeeded} hücre</small>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateRackList() {
+            const container = document.getElementById('rackList');
+            container.innerHTML = '';
+            
+            if (racks.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #94a3b8;">Henüz raf eklenmedi</p>';
+                return;
+            }
+            
+            racks.forEach(rack => {
+                const div = document.createElement('div');
+                div.className = 'item';
+                div.innerHTML = `
+                    <strong>${rack.name}</strong><br>
+                    <small>${rack.roomName} - +%${rack.bonus} bonus</small>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateTotalPower() {
+            let totalPower = 0;
+            miners.forEach(miner => {
+                totalPower += miner.power * (1 + miner.bonus/100);
+            });
+            
+            racks.forEach(rack => {
+                totalPower = totalPower * (1 + rack.bonus/100);
+            });
+            
+            document.getElementById('totalPower').textContent = 
+                Math.round(totalPower).toLocaleString() + ' GH/s';
+        }
+
+        function saveData() {
+            const data = {
+                miners: miners,
+                racks: racks,
+                rooms: rooms,
+                savedAt: new Date().toISOString()
+            };
+            localStorage.setItem('minerData', JSON.stringify(data));
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('minerData');
+            if (saved) {
+                const data = JSON.parse(saved);
+                miners = data.miners || [];
+                racks = data.racks || [];
+                rooms = data.rooms || [
+                    { id: 1, name: "Oda 1", maxRacks: 12, racks: [] },
+                    { id: 2, name: "Oda 2", maxRacks: 18, racks: [] },
+                    { id: 3, name: "Oda 3", maxRacks: 18, racks: [] },
+                    { id: 4, name: "Oda 4", maxRacks: 18, racks: [] }
+                ];
+            }
+        }
+    </script>
+</body>
+</html>
